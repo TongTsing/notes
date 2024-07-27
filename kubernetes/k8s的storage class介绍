@@ -1,0 +1,122 @@
+Kubernetes (k8s) 的 Storage Class 是一种用于动态管理和配置存储资源的抽象。它定义了存储卷的创建参数，以便为应用程序提供合适的存储解决方案。以下是有关 Kubernetes Storage Class 的一些关键点：
+
+### 1. 什么是 Storage Class
+
+Storage Class 是一种 Kubernetes 资源，它为集群管理员提供了一种描述存储 "类" 的方式。这些类表示了存储服务的不同质量级别和特性，比如性能、备份策略、存储类型（如 SSD 或 HDD）等。通过使用 Storage Class，管理员可以灵活地为不同应用程序需求分配适当的存储资源。
+
+### 2. Storage Class 的结构
+
+一个 Storage Class 通常包括以下几个部分：
+
+- **provisioner**: 用于指定哪种类型的存储设备（如 NFS、GlusterFS、AWS EBS、GCE PD 等）应该被用于动态创建持久卷。
+- **parameters**: 这些参数指定了存储类型的具体配置，比如磁盘类型、文件系统类型等。
+- **reclaimPolicy**: 定义当持久卷（Persistent Volume）不再被使用时，应该如何处理。常见的策略有 `Retain`（保留）、`Delete`（删除）和 `Recycle`（回收）。
+- **allowVolumeExpansion**: 一个布尔值，表示是否允许对持久卷进行扩展。
+- **mountOptions**: 可以指定挂载卷时的额外挂载选项。
+
+好的，以下是一个使用 NFS 作为存储后端的 Storage Class 示例，以及一个使用该 Storage Class 的 Persistent Volume Claim (PVC) 示例。
+
+### 3. 创建 NFS Storage Class
+
+首先，我们创建一个 Storage Class，指定使用 NFS 作为存储设备。
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+provisioner: example.com/nfs
+parameters:
+  server: nfs-server.example.com
+  path: /path/to/share
+reclaimPolicy: Retain
+mountOptions:
+  - vers=4.1
+```
+
+在这个示例中：
+- `provisioner` 被设为 `example.com/nfs`，需要一个外部的 NFS 动态供应器。
+- `parameters` 部分指定了 NFS 服务器的地址和共享路径。
+- `reclaimPolicy` 被设为 `Retain`，表示当持久卷不再使用时，保留卷数据。
+- `mountOptions` 指定了挂载选项。
+
+### 创建 Persistent Volume Claim (PVC)
+
+接下来，创建一个 Persistent Volume Claim 来申请使用该 Storage Class 提供的存储资源。
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc
+spec:
+  storageClassName: nfs-storage
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+在这个示例中：
+- `storageClassName` 被设为 `nfs-storage`，指定使用我们前面定义的 NFS Storage Class。
+- `accessModes` 设为 `ReadWriteMany`，表示多个节点可以同时读写该卷。
+- `resources` 请求了 10Gi 的存储空间。
+
+### 4. 使用 NFS Dynamic Provisioner
+
+要让 Kubernetes 支持 NFS 的动态供应，需要一个 NFS 动态供应器。一个常用的选择是 `nfs-subdir-external-provisioner`。以下是安装和配置该供应器的步骤：
+
+1. 安装 `nfs-subdir-external-provisioner`：
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/nfs-subdir-external-provisioner/master/deploy/kubernetes/deployment.yaml
+```
+
+2. 配置 `nfs-subdir-external-provisioner` 的 Storage Class：
+
+修改 `deployment.yaml` 文件中的相关部分以匹配你的 NFS 服务器配置。
+
+3. 创建 NFS Storage Class：
+
+确保 `provisioner` 字段匹配 `nfs-subdir-external-provisioner` 的名字，例如 `nfs-subdir-external-provisioner`。
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+provisioner: nfs-subdir-external-provisioner
+parameters:
+  archiveOnDelete: "false"
+  pathPattern: "${.PVC.namespace}/${.PVC.name}"
+reclaimPolicy: Retain
+```
+
+在这个示例中：
+- `provisioner` 被设为 `nfs-subdir-external-provisioner`。
+- `parameters` 中的 `archiveOnDelete` 设为 `false`，表示删除 PVC 时不会保留数据。
+- `pathPattern` 可以自定义 NFS 目录结构。
+
+这样，NFS Storage Class 就可以和 `nfs-subdir-external-provisioner` 一起使用了。确保你的 NFS 服务器已配置并可通过网络访问。
+
+### 5. 常见的 Storage Provisioners
+
+- **AWS EBS**: `kubernetes.io/aws-ebs`
+- **GCE PD**: `kubernetes.io/gce-pd`
+- **Azure Disk**: `kubernetes.io/azure-disk`
+- **NFS**: `kubernetes.io/nfs`
+- **Ceph RBD**: `kubernetes.io/rbd`
+- **GlusterFS**: `kubernetes.io/glusterfs`
+
+### 6. 管理和监控
+
+管理员可以使用 `kubectl` 命令来管理和监控 Storage Class。例如，列出所有 Storage Class：
+
+```sh
+kubectl get storageclass
+```
+
+### 总结
+
+Storage Class 提供了一种灵活且强大的方式来管理 Kubernetes 集群中的存储资源。通过定义不同的 Storage Class，管理员可以根据应用需求提供合适的存储服务，从而提高资源利用率和应用性能。
