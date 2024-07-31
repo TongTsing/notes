@@ -1,0 +1,71 @@
+## Subprocess
+
+subprocess 模块是 python 从 2.4 版本开始引入的模块，也是系统自带的，不需要再额外安装了。
+
+主要用来取代一些旧的模块方法，如 os.system、os.spawn*、os.popen*、commands.* 等。
+
+subprocess 通过子进程来执行外部指令，并通过 input / output / error 管道，获取子进程的执行的返回信息。
+
+1. `subprocess.call()`
+
+   执行命令，并返回执行状态。其中，
+
+   - `shell` 参数为 `False` 时，命令以及命令的参数需要通过列表的方式传入；
+
+     ```shell
+     print(subprocess.call(["ls", "-l"], shell=False))  
+     # <class 'int'>
+     #
+     # total 416
+     # -rw-r--r--  1   staff    49B Jul 27 20:02 main.py
+     # -rw-r--r--  1   staff    63B Jul 16 17:38 temporary.py
+     # -rw-r--r--  1   staff   4.1K Jul 24 20:02 test.py
+     # -rw-r--r--  1   staff    94B Jul 24 19:31 usrs_info.pickle
+     # 0
+     
+     print(subprocess.call(["touch", "c.txt"], shell=False))
+     # 直接返回 0，表示操作成功
+     # 0
+     ```
+   
+   -  `shell` 参数为 `True` 时，可通过一个字符串直接传入命令以及命令所需要的参数；
+   
+     ```shell
+     print(subprocess.call(("ls -l"), shell=True)
+     # <class 'int'>
+     # 
+     # total 416
+     # -rw-r--r--  1   staff    49B Jul 27 20:02 main.py
+     # -rw-r--r--  1   staff    63B Jul 16 17:38 temporary.py
+     # -rw-r--r--  1   staff   4.1K Jul 24 20:02 test.py
+     # -rw-r--r--  1   staff    94B Jul 24 19:31 usrs_info.pickle
+     # 0
+     
+     print(subprocess.call(["mkdir newdir1"], shell=True))  
+     # 直接返回 0，表示操作成功
+     # 0
+     ```
+   
+2. subprocess.check_call()
+
+   用法与 `subprocess.call()` 类似，区别是，
+   当返回值不为 `0` 时，直接抛出异常。
+
+3. subprocess.check_output()
+
+   用法与上面两个方法类似，区别是：
+   		当返回值为 `0` 时，直接返回输出结果；
+   		当返回值不为 `0`，直接抛出异常。
+   		需要说明的是，该方法在 `python3.x` 中才有。
+
+   ```shell
+   a = subprocess.check_output(["ls","-l"], shell=False)
+   print(a)  
+   # <class 'bytes'>
+   # 不是直接返回0了，而是直接返回执行结果的内容
+   # b'total 416\n-rw-r--r--  1 xueshanzhang  staff    4326 Jul 24 17:59 MotivationLetterGenerator.py\ndrwxr
+   ```
+
+   `subprocess` 的功能还有更多，比如还有 `Popen` 类。
+
+   `subprocess` 模块中定义了一个 `Popen` 类，通过它可以来创建进程，并与其进行复杂的交互。
